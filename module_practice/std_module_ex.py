@@ -48,3 +48,5 @@ d = datetime.today()
 print(d)
 
 print(f'지금은 {d.year}년 {d.month}월 {d.day}일 {d.hour}시 {d.minute}분 {d.second}초 입니다.')
+
+
