@@ -1,1 +1,1 @@
-t.sleep(2)
+print(title)
