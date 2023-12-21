@@ -72,26 +72,27 @@ cnt = 2 # 엑셀 행 수 카운트 해줄 변수
 while True:
     # bs4 초기화
     soup = BeautifulSoup(browser.page_source, 'html.parser')
+
     cnt += 1
     lst50_list = soup.find_all('tr', class_='lst50')
-
+    print(lst50_list)
     for lst50 in lst50_list:
         div = lst50.select_one('div.wrap_song_info')
         # print(div)
         # 타이틀
         title = div.select_one('div.rank01 > span > a').text
         singer = div.select_one('div.rank02 > span > a').text
-        book = div.select_one('div. > a').text.strip()
+        # book = div.select_one('div.rank03 > a').text.strip()
 
         print(title)
         print(singer)
-        print(book)
+        # print(book)
     
     
     if cnt < 4:
         break
     
-    
+
         
 
 # //*[@id="lst50"]/td[6]/div/div/div[1]/span/a

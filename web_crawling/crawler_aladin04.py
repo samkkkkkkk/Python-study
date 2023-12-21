@@ -68,19 +68,20 @@ while True:
     soup = BeautifulSoup(browser.page_source, 'html.parser')
 
     div_ss_book_box_list = soup.find_all('div', class_='ss_book_box')
-
+    # print(div_ss_book_box_list)
     for div_ss_book_box in div_ss_book_box_list:
 
         # 타이틀, 작가, 가격정보를 모두 포함하는 ul부터 지목
         ul = div_ss_book_box.select_one('div.ss_book_list > ul')
+        # print("ul",ul)
 
         # 타이틀
         title = ul.select_one('li > a.bo3')
-
+        # print(title)
         # 작가
         # 위에서 얻은 title의 부모요소 li의 다음 형제 li를 지목 -> 작가, 출판사, 출판일 존재
         author = title.find_parent().find_next_sibling()
-
+        print(author)
         # 작가쪽 영역 데이터 상세 분해
         author_data = author.text.split('|')
         author_name = author_data[0].strip()
@@ -90,7 +91,7 @@ while True:
         # 가격
         price = author.find_next_sibling()
         price_data = price.text.split(', ')[0]
-
+        # print(title)
         # sql을 문자열로 작성하고, 변수가 들어갈 위치를 %s로 표현합니다.
         # 값은 튜플로 전달한다.
         # %s는 변수의 위치를 잡아주기 위한 서식문자다. 타입과는 상관이 없다.
