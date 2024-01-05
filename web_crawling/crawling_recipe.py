@@ -5,6 +5,7 @@ from datetime import datetime
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 import pyautogui
+
 import mysql.connector
 
 # DB접속을 위한 정보 세팅 
@@ -64,7 +65,7 @@ browser.implicitly_wait(10)
 
 num = 1
 page_num = 1
-while num < 43:
+while True:
     soup = BeautifulSoup(browser.page_source, 'html.parser')
 
     b = soup.find('ul', class_='list_register')
@@ -134,7 +135,8 @@ while num < 43:
             print(recipe)
             print(recipe_detail)
         print('===========================')
-        pyautogui.hotkey('alt', 'left')
+        # pyautogui.hotkey('alt', 'left')
+        browser.back()
         browser.implicitly_wait(10)
     
     # browser.get(f'https://100.daum.net/book/630/list')
@@ -151,6 +153,8 @@ while num < 43:
     print("==================\n\n==================\n\n=================\n num: ", num)
     # //*[@id="mArticle"]/div/div[3]/span/a[1]/span
     # //*[@id="mArticle"]/div/div[3]/span/a[2]/span
+    if num == 44:
+        break
 
 
 

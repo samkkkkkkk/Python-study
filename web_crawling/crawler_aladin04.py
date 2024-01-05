@@ -81,7 +81,7 @@ while True:
         # 작가
         # 위에서 얻은 title의 부모요소 li의 다음 형제 li를 지목 -> 작가, 출판사, 출판일 존재
         author = title.find_parent().find_next_sibling()
-        print(author)
+        # print(author)
         # 작가쪽 영역 데이터 상세 분해
         author_data = author.text.split('|')
         author_name = author_data[0].strip()
