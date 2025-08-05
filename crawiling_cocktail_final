@@ -1,0 +1,143 @@
+# crawling_cocktail_wait.py
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
+from datetime import datetime
+import urllib.request as req
+import mysql.connector
+import time, random, os, platform
+
+# ────────────────── 1. DB 연결 ──────────────────
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="honbam",
+    passwd="honbam",
+    database="honbam",
+)
+mycursor = mydb.cursor()
+
+# ────────────────── 2. User-Agent 삽입 ──────────────────
+opener = req.build_opener()
+opener.addheaders = [("User-Agent", UserAgent().edge)]
+req.install_opener(opener)
+
+# ────────────────── 3. Selenium 설정 ──────────────────
+options = Options()
+options.add_experimental_option("detach", True)
+# 창을 숨기고 싶으면 아래 주석 해제
+# options.add_argument("--headless=new")
+
+# 원치 않는 브라우저 로그 최소화
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
+options.add_argument("--log-level=3")
+
+# 드라이버 로그 무시
+log_path = "NUL" if platform.system() == "Windows" else "/dev/null"
+service = Service(ChromeDriverManager().install(), log_path=log_path)
+
+browser = webdriver.Chrome(service=service, options=options)
+browser.set_window_size(800, 600)
+
+# 전역 암묵 대기(한 번만)
+browser.implicitly_wait(10)
+
+# 명시적 대기 객체
+wait = WebDriverWait(browser, 15)
+
+# ────────────────── 4. 크롤링 시작 ──────────────────
+target_page = "https://100.daum.net/book/630/list"
+browser.get(target_page)
+
+num = 1          # 목록 페이지 카운터 (1~43)
+page_num = 1     # UI 페이지 버튼 인덱스(2~11 재활용)
+
+while True:
+    soup = BeautifulSoup(browser.page_source, "html.parser")
+    ul = soup.find("ul", class_="list_register")
+    if not ul:
+        print("[종료] 목록 구조를 찾지 못함")
+        break
+
+    for li in ul.select("li"):
+        detail_rel = li.select_one("a")["href"]      # 상세 경로
+        detail_url = "https://100.daum.net" + detail_rel
+        browser.get(detail_url)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "h3")))
+
+        dsoup = BeautifulSoup(browser.page_source, "html.parser")
+
+        # ── ① 칵테일 이름
+        cocktail_name = dsoup.find("h3").get_text(strip=True)
+
+        # ── ② 이미지 URL
+        img_tag = dsoup.find("a", class_="link_figure").select_one("img")
+        cocktail_img = img_tag["src"]
+
+        # ── ③ 요약 테이블
+        recipe_parts = []
+        for t in dsoup.find_all("table", class_="list_summary"):
+            for th, td in zip(t.select("th"), t.select("td")):
+                recipe_parts.append(f"{th.get_text(strip=True)} {td.get_text(strip=True)}")
+        recipe = "/".join(recipe_parts)
+
+        # ── ④ 유래·만드는 법
+        detail_parts = []
+        for div in dsoup.find_all("div", class_="section_desc"):
+            h4 = div.select_one("h4").get_text(strip=True)
+            p = div.select_one("p.desc_section").get_text(strip=True)
+            detail_parts += [h4, p]
+        recipe_detail = "/" + "/".join(detail_parts)
+
+        print(cocktail_name)
+
+        # ── ⑤ DB INSERT
+        sql = """
+            INSERT INTO tbl_recipe
+            (cocktail_name, cocktail_img, recipe, recipe_detail)
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+              cocktail_img=VALUES(cocktail_img),
+              recipe=VALUES(recipe),
+              recipe_detail=VALUES(recipe_detail)
+        """
+        mycursor.execute(sql, (cocktail_name, cocktail_img, recipe, recipe_detail))
+
+        # ── 상세 페이지 처리 간 소폭 지연
+        time.sleep(random.uniform(1.5, 3.0))
+
+        # 뒤로 가기
+        browser.back()
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "ul.list_register")))
+
+    mydb.commit()
+
+    # ── 목록 페이징 (43 페이지까지만)
+    if num >= 43:
+        break
+
+    # 페이지 버튼 클릭
+    page_btn = browser.find_element(By.XPATH, f'//*[@id="mArticle"]/div/div[3]/span/a[{page_num}]')
+    page_btn.click()
+
+    # 새 목록 준비될 때까지 대기
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "ul.list_register")))
+
+    # 레이트리밋 완화를 위한 무작위 대기(2.5~4.5 초)
+    time.sleep(random.uniform(2.5, 4.5))
+
+    # 버튼 인덱스 순환 로직
+    page_num += 1
+    if page_num == 12 or num == 10:
+        page_num = 2
+    num += 1
+
+# ────────────────── 5. 정리 ──────────────────
+browser.quit()
+mycursor.close()
+mydb.close()
